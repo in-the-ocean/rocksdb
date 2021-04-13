@@ -54,6 +54,7 @@ struct AtomicCompactionUnitBoundary {
 struct CompactionInputFiles {
   int level;
   std::vector<FileMetaData*> files;
+  bool level0_log_merge;
   std::vector<AtomicCompactionUnitBoundary> atomic_compaction_unit_boundaries;
   inline bool empty() const { return files.empty(); }
   inline size_t size() const { return files.size(); }

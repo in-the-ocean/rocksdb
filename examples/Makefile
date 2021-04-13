@@ -16,9 +16,12 @@ CFLAGS += -Wstrict-prototypes
 
 .PHONY: clean librocksdb
 
-all: simple_example column_families_example compact_files_example c_simple_example optimistic_transaction_example transaction_example compaction_filter_example options_file_example
+all: simple_example test_example column_families_example compact_files_example c_simple_example optimistic_transaction_example transaction_example compaction_filter_example options_file_example
 
 simple_example: librocksdb simple_example.cc
+	$(CXX) $(CXXFLAGS) $@.cc -o$@ ../librocksdb.a -I../include -O2 -std=c++11 $(PLATFORM_LDFLAGS) $(PLATFORM_CXXFLAGS) $(EXEC_LDFLAGS)
+
+test_example: librocksdb test_example.cc
 	$(CXX) $(CXXFLAGS) $@.cc -o$@ ../librocksdb.a -I../include -O2 -std=c++11 $(PLATFORM_LDFLAGS) $(PLATFORM_CXXFLAGS) $(EXEC_LDFLAGS)
 
 column_families_example: librocksdb column_families_example.cc
@@ -49,7 +52,10 @@ multi_processes_example: librocksdb multi_processes_example.cc
 	$(CXX) $(CXXFLAGS) $@.cc -o$@ ../librocksdb.a -I../include -O2 -std=c++11 $(PLATFORM_LDFLAGS) $(PLATFORM_CXXFLAGS) $(EXEC_LDFLAGS)
 
 clean:
-	rm -rf ./simple_example ./column_families_example ./compact_files_example ./compaction_filter_example ./c_simple_example c_simple_example.o ./optimistic_transaction_example ./transaction_example ./options_file_example ./multi_processes_example
+	rm -rf ./simple_example ./test_example ./column_families_example ./compact_files_example ./compaction_filter_example ./c_simple_example c_simple_example.o ./optimistic_transaction_example ./transaction_example ./options_file_example ./multi_processes_example
+
+cleandb:
+	rm -rf /tmp/rocksdb_test_example /tmp/rocksdb_simple_example /tmp/rocksdb_columnfamilies_example /tmp/rocksdb_compact_files_example /tmp/rocksdb_compaction_filter_example /tmp/rocksdb_c_simple_example  /tmp/rocksdb_optimistic_transaction_example /tmp/rocksdb_transaction_example /tmp/rocksdb_options_file_example /tmp/rocksdb_multi_processes_example
 
 librocksdb:
 	cd .. && $(MAKE) static_lib

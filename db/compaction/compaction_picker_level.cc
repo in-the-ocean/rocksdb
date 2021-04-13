@@ -181,8 +181,13 @@ void LevelCompactionBuilder::SetupInitialFiles() {
       if (PickFileToCompact()) {
         // found the compaction!
         if (start_level_ == 0) {
-          // L0 score = `num L0 files` / `level0_file_num_compaction_trigger`
-          compaction_reason_ = CompactionReason::kLevelL0FilesNum;
+          if (start_level_inputs_.level0_log_merge) {
+            // Level0 has files of similar sizes that can be merged together
+            compaction_reason_ = CompactionReason::kLevel0LogMerge;
+          } else {
+            // L0 score = `num L0 files` / `level0_file_num_compaction_trigger`
+            compaction_reason_ = CompactionReason::kLevelL0FilesNum;
+          }
         } else {
           // L1+ score = `Level files size` / `MaxBytesForLevel`
           compaction_reason_ = CompactionReason::kLevelMaxLevelSize;
@@ -419,6 +424,19 @@ bool LevelCompactionBuilder::PickFileToCompact() {
   start_level_inputs_.clear();
 
   assert(start_level_ >= 0);
+
+  // log merge lv0 files with similar size
+  if (start_level_ == 0) {
+    if (vstorage_->FindLevel0LogMerge(&(start_level_inputs_.files))) {
+      assert(start_level_inputs_.size() == 2);
+      start_level_inputs_.level = 0;
+      start_level_inputs_.level0_log_merge = true;
+      output_level_ = 0;
+      return true;
+    }
+    start_level_inputs_.clear();
+    start_level_inputs_.level0_log_merge = false;
+  }
 
   // Pick the largest file in this level that is not already
   // being compacted
