@@ -2427,35 +2427,25 @@ void VersionStorageInfo::ComputeCompensatedSizes() {
 }
 
 bool VersionStorageInfo::FindLevel0LogMerge(std::vector<FileMetaData*>* find_files) {
-  std::vector<FileMetaData*> temp(files_[0].size());
-  for (size_t i = 0; i < files_[0].size(); i++) {
-    temp[i] = files_[0][i];
-  }
-  std::sort(temp.begin(), temp.end(),
-            [](const FileMetaData* f1, const FileMetaData* f2) -> bool {
-              return f1->raw_key_size + f1->raw_value_size >
-                     f2->raw_key_size + f2->raw_value_size;
-            });
+  const std::vector<FileMetaData*>& temp = LevelFiles(0);
+  std::unordered_map<int, int> record;
   for (int i = temp.size() - 1; i >= 0; i--) {
     auto* f = temp[i];
 
     if (f->being_compacted) {
       continue;
     }
-    // find another file with similar size
-    for (int j = i - 1; j >= 0; j--) {
-      auto* f_2 = temp[j];
-      if (f_2->being_compacted) {
-        continue;
-      }
-      if ((f->raw_key_size + f->raw_value_size) * 2 > 
-          f_2->raw_key_size + f_2->raw_value_size) {
-        find_files->push_back(f_2);
-        find_files->push_back(f);
-        return true;
-      }
-      break;
+
+    // found another file with similar size
+    uint64_t s = f->raw_key_size + f->raw_value_size;
+    int clz = s ? __builtin_clzll(s) : 32;
+    if (record.find(clz) != record.end()) {
+      find_files->push_back(temp[record.at(clz)]);
+      find_files->push_back(f);
+      return true;
     }
+
+    record.insert({clz, i});
   }
   return false;
 }

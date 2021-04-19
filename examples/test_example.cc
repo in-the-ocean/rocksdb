@@ -35,7 +35,7 @@ int main() {
   s = db->SetOptions({{"max_bytes_for_level_base", "100000"}});
   assert(s.ok());
 
-  for (int i = 0; i < 20; i++) {
+  for (int i = 20; i < 40; i++) {
     s = db->Put(WriteOptions(), "key" + std::to_string(i), "value");
     assert(s.ok());
     std::this_thread::sleep_for (std::chrono::milliseconds(100));
