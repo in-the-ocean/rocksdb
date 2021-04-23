@@ -98,6 +98,8 @@ enum class CompactionReason : int {
   kExternalSstIngestion,
   // Compaction due to SST file being too old
   kPeriodicCompaction,
+  // Level 0 log merge
+  kLevel0LogMerge,
   // total number of compaction reasons, new reasons must be added above this.
   kNumOfReasons,
 };

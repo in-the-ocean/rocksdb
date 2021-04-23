@@ -196,6 +196,10 @@ class VersionStorageInfo {
     return level0_non_overlapping_;
   }
 
+  // Find two files in level0 that are similar in size
+  bool FindLevel0LogMerge(std::vector<FileMetaData*>* find_files,
+                          const MutableCFOptions& mutable_cf_options);
+
   // Check whether each file in this version is bottommost (i.e., nothing in its
   // key-range could possibly exist in an older file/level).
   // REQUIRES: This version has not been saved

@@ -15,6 +15,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <iostream>
 
 #include "db/blob/blob_file_cache.h"
 #include "db/compaction/compaction_picker.h"
@@ -658,6 +659,17 @@ ColumnFamilyData::~ColumnFamilyData() {
           "Failed to unregister data paths of column family (id: %d, name: %s)",
           id_, name_.c_str());
     }
+  }
+}
+
+void ColumnFamilyData::PrintFiles() const {
+  for (int i = 0; i < current_->storage_info()->num_levels(); i++) {
+    std::cout << "level " << i << ": ";
+    for (auto f : current_->storage_info()->LevelFiles(i)) {
+      std::cout << f->raw_key_size + f->raw_value_size << " ";
+      // std::cout << f->fd.GetFileSize() << std::endl;
+    }
+    std::cout << std::endl;
   }
 }
 
