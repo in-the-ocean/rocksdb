@@ -2426,10 +2426,22 @@ void VersionStorageInfo::ComputeCompensatedSizes() {
   }
 }
 
-bool VersionStorageInfo::FindLevel0LogMerge(std::vector<FileMetaData*>* find_files) {
+bool VersionStorageInfo::FindLevel0LogMerge(std::vector<FileMetaData*>* find_files,
+                                            const MutableCFOptions& mutable_cf_options) {
   const std::vector<FileMetaData*>& temp = LevelFiles(0);
+  uint64_t total_size = 0;
+  for (size_t i = 0; i < temp.size(); i++) {
+    auto* f = temp[i];
+    if (!f->being_compacted) {
+      total_size += f->compensated_file_size;
+    }
+  }
+  // if level0 size reach its capacity, don't do level0 log merge
+  if (total_size > mutable_cf_options.max_bytes_for_level_base) {
+    return false;
+  }
   std::unordered_map<int, int> record;
-  for (int i = temp.size() - 1; i >= 0; i--) {
+  for (size_t i = 0; i < temp.size(); i++) {
     auto* f = temp[i];
 
     if (f->being_compacted) {
@@ -2654,7 +2666,7 @@ void VersionStorageInfo::ComputeCompactionScore(
           score =
               std::max(score, static_cast<double>(total_size) / l0_target_size);
           std::vector<FileMetaData*> l0_log_merge_files;
-          if (FindLevel0LogMerge(&l0_log_merge_files)) {
+          if (FindLevel0LogMerge(&l0_log_merge_files, mutable_cf_options)) {
             score = std::max(score, static_cast<double>(l0_log_merge_files.size()));
           }
         }

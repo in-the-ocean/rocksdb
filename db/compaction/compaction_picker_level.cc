@@ -427,7 +427,7 @@ bool LevelCompactionBuilder::PickFileToCompact() {
 
   // log merge lv0 files with similar size
   if (start_level_ == 0) {
-    if (vstorage_->FindLevel0LogMerge(&(start_level_inputs_.files))) {
+    if (vstorage_->FindLevel0LogMerge(&(start_level_inputs_.files), mutable_cf_options_)) {
       // if found files to merge, there should be 2 files inserted in start_level_inputs_
       assert(start_level_inputs_.size() == 2);
       start_level_inputs_.level = 0;

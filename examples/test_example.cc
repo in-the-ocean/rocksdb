@@ -32,7 +32,7 @@ int main() {
 
   s = db->SetOptions({{"write_buffer_size", "18"}});
   assert(s.ok());
-  s = db->SetOptions({{"max_bytes_for_level_base", "100000"}});
+  s = db->SetOptions({{"max_bytes_for_level_base", "10000000"}});
   assert(s.ok());
 
   for (int i = 20; i < 40; i++) {
