@@ -19,6 +19,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <iostream>
 
 #include "compaction/compaction.h"
 #include "db/blob/blob_file_cache.h"
@@ -2650,7 +2651,8 @@ void VersionStorageInfo::ComputeCompactionScore(
           // Level-based involves L0->L0 compactions that can lead to oversized
           // L0 files. Take into account size as well to avoid later giant
           // compactions to the base level.
-          uint64_t l0_target_size = mutable_cf_options.max_bytes_for_level_base;
+          uint64_t l0_target_size = mutable_cf_options.max_bytes_for_level_base 
+                                    * (1 << mutable_cf_options.expansions);
           if (immutable_cf_options.level_compaction_dynamic_level_bytes &&
               level_multiplier_ != 0.0) {
             // Prevent L0 to Lbase fanout from growing larger than
@@ -3453,6 +3455,8 @@ void VersionStorageInfo::CalculateBaseBytes(const ImmutableCFOptions& ioptions,
   }
   set_l0_delay_trigger_count(num_l0_count);
 
+  std::cout << options.max_bytes_for_level_multiplier << std::endl;
+
   level_max_bytes_.resize(ioptions.num_levels);
   if (!ioptions.level_compaction_dynamic_level_bytes) {
     base_level_ = (ioptions.compaction_style == kCompactionStyleLevel) ? 1 : -1;
@@ -3460,14 +3464,16 @@ void VersionStorageInfo::CalculateBaseBytes(const ImmutableCFOptions& ioptions,
     // Calculate for static bytes base case
     for (int i = 0; i < ioptions.num_levels; ++i) {
       if (i == 0 && ioptions.compaction_style == kCompactionStyleUniversal) {
-        level_max_bytes_[i] = options.max_bytes_for_level_base;
+        level_max_bytes_[i] = options.max_bytes_for_level_base * (1 << options.expansions);
       } else if (i > 1) {
         level_max_bytes_[i] = MultiplyCheckOverflow(
+            MultiplyCheckOverflow(
             MultiplyCheckOverflow(level_max_bytes_[i - 1],
                                   options.max_bytes_for_level_multiplier),
-            options.MaxBytesMultiplerAdditional(i - 1));
+            options.MaxBytesMultiplerAdditional(i - 1)),
+            1 << options.expansions);
       } else {
-        level_max_bytes_[i] = options.max_bytes_for_level_base;
+        level_max_bytes_[i] = options.max_bytes_for_level_base * (1 << options.expansions);
       }
     }
   } else {

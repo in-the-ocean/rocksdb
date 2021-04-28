@@ -25,6 +25,8 @@ int main() {
   options.create_if_missing = true;
   options.level_compaction_dynamic_level_bytes = false;
   options.write_buffer_size = 18;
+  options.level0_file_num_compaction_trigger = 20;
+  // options.max_bytes_for_level_multiplier = 3;
 
   // open DB
   Status s = DB::Open(options, kDBPath, &db);
@@ -32,10 +34,10 @@ int main() {
 
   s = db->SetOptions({{"write_buffer_size", "18"}});
   assert(s.ok());
-  s = db->SetOptions({{"max_bytes_for_level_base", "10000000"}});
+  s = db->SetOptions({{"max_bytes_for_level_base", "4000"}});
   assert(s.ok());
 
-  for (int i = 20; i < 40; i++) {
+  for (int i = 100; i < 130; i++) {
     s = db->Put(WriteOptions(), "key" + std::to_string(i), "value");
     assert(s.ok());
     std::this_thread::sleep_for (std::chrono::milliseconds(100));
