@@ -2617,9 +2617,9 @@ void DBImpl::BackgroundCallFlush(Env::Priority thread_pri) {
       mutex_.Lock();
     }
 
-    std::cout << "flushed\n";
-    versions_->GetColumnFamilySet()->GetColumnFamily("default")->PrintFiles();
-    std::cout << "\n";
+    // std::cout << "flushed\n";
+    // versions_->GetColumnFamilySet()->GetColumnFamily("default")->PrintFiles();
+    // std::cout << "\n";
     TEST_SYNC_POINT("DBImpl::BackgroundCallFlush:FlushFinish:0");
     ReleaseFileNumberFromPendingOutputs(pending_outputs_inserted_elem);
 
@@ -2978,9 +2978,9 @@ Status DBImpl::BackgroundCompaction(bool* made_progress,
     auto cfd = c->column_family_data();
     auto* mutable_cf_options = c->mutable_cf_options();
     if (c->output_level() > mutable_cf_options->curr_max_level) {
-      std::cout << mutable_cf_options->curr_max_level << std::endl;
-      std::cout << c->output_level() << std::endl;
-      std::cout << "try expand" << std::endl;
+      // std::cout << mutable_cf_options->curr_max_level << std::endl;
+      // std::cout << c->output_level() << std::endl;
+      // std::cout << "try expand" << std::endl;
       MutableCFOptions new_options;
       Status s;
       Status persist_options_status;
@@ -2998,6 +2998,16 @@ Status DBImpl::BackgroundCompaction(bool* made_progress,
         VersionEdit dummy_edit;
         s = versions_->LogAndApply(cfd, new_options, &dummy_edit, &mutex_,
                                     directories_.GetDbDir());
+        if (s.ok()) {
+          c->ReleaseCompactionFiles(status);
+          c->column_family_data()
+              ->current()
+              ->storage_info()
+              ->ComputeCompactionScore(*(c->immutable_cf_options()),
+                                        *(c->mutable_cf_options()));
+          c.reset();
+          // std::cout << "expanded" << std::endl;
+        }
         // Trigger possible flush/compactions. This has to be before we persist
         // options to file, otherwise there will be a deadlock with writer
         // thread.
@@ -3005,23 +3015,7 @@ Status DBImpl::BackgroundCompaction(bool* made_progress,
 
         persist_options_status = WriteOptionsFile(
             false /*need_mutex_lock*/, true /*need_enter_write_thread*/);
-        bg_cv_.SignalAll();
-      }
-      if (s.ok()) {
-        c->ReleaseCompactionFiles(status);
-        c->column_family_data()
-            ->current()
-            ->storage_info()
-            ->ComputeCompactionScore(*(c->immutable_cf_options()),
-                                      *(c->mutable_cf_options()));
-        if (cfd->NeedsCompaction()) {
-          // Yes, we need more compactions!
-          AddToCompactionQueue(cfd);
-          ++unscheduled_compactions_;
-          MaybeScheduleFlushOrCompaction();
-        }
-        c.reset();
-        std::cout << "expanded" << std::endl;
+        // bg_cv_.SignalAll();
       }
     }
   }
@@ -3206,13 +3200,13 @@ Status DBImpl::BackgroundCompaction(bool* made_progress,
       InstallSuperVersionAndScheduleWork(c->column_family_data(),
                                          &job_context->superversion_contexts[0],
                                          *c->mutable_cf_options());
-      std::cout << "compacted files ";
-      for (auto f : *(c->inputs(0))) {
-        std::cout << f->raw_key_size + f->raw_value_size << " ";
-      }
-      std::cout << "to level " << output_level << std::endl;
-      c->column_family_data()->PrintFiles();
-      std::cout << "\n";
+      // std::cout << "compacted files ";
+      // for (auto f : *(c->inputs(0))) {
+      //   std::cout << f->raw_key_size + f->raw_value_size << " ";
+      // }
+      // std::cout << "to level " << output_level << std::endl;
+      // c->column_family_data()->PrintFiles();
+      // std::cout << "\n";
     }
     *made_progress = true;
     TEST_SYNC_POINT_CALLBACK("DBImpl::BackgroundCompaction:AfterCompaction",
