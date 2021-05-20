@@ -420,6 +420,10 @@ struct AdvancedColumnFamilyOptions {
 
   // Number of levels for this database
   int num_levels = 7;
+  // current number of levels in use
+  int curr_max_level = 1;
+  // number of expansions; start with 0 expansions
+  int expansions = 0;
 
   // Soft limit on number of level-0 files. We start slowing down writes at this
   // point. A value <0 means that no writing slow down will be triggered by

@@ -19,6 +19,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <iostream>
 
 #include "compaction/compaction.h"
 #include "db/blob/blob_file_cache.h"
@@ -2429,35 +2430,48 @@ void VersionStorageInfo::ComputeCompensatedSizes() {
 bool VersionStorageInfo::FindLevel0LogMerge(std::vector<FileMetaData*>* find_files,
                                             const MutableCFOptions& mutable_cf_options) {
   const std::vector<FileMetaData*>& temp = LevelFiles(0);
+  std::vector<size_t> approx_size;
   uint64_t total_size = 0;
   for (size_t i = 0; i < temp.size(); i++) {
     auto* f = temp[i];
+    uint64_t s = f->raw_key_size + f->raw_value_size;
+    int clz = s ? __builtin_clzll(s) : 32;
+    approx_size.push_back(1 << (63 - clz));
     if (!f->being_compacted) {
       total_size += f->compensated_file_size;
     }
   }
+  // std::cout << "approx size" << std::endl;
+  // for (size_t i = 0; i < approx_size.size(); i++) {
+  //   std::cout << approx_size[i] << " " << std::endl;
+  // }
   // if level0 size reach its capacity, don't do level0 log merge
-  if (total_size > mutable_cf_options.max_bytes_for_level_base) {
+  if (total_size > mutable_cf_options.max_bytes_for_level_base * (1 << mutable_cf_options.expansions)) {
     return false;
   }
-  std::unordered_map<int, int> record;
-  for (size_t i = 0; i < temp.size(); i++) {
-    auto* f = temp[i];
 
-    if (f->being_compacted) {
+  for (int i = temp.size() - 1; i >= 0; i--) {
+    if (temp[i]->being_compacted) {
       continue;
     }
-
-    // found another file with similar size
-    uint64_t s = f->raw_key_size + f->raw_value_size;
-    int clz = s ? __builtin_clzll(s) : 32;
-    if (record.find(clz) != record.end()) {
-      find_files->push_back(temp[record.at(clz)]);
-      find_files->push_back(f);
-      return true;
+    size_t sum = approx_size[i];
+    int start = i;
+    for (int j = i - 1; j >= 0; j--) {
+      if (temp[j]->being_compacted) {
+        break;
+      }
+      sum += approx_size[j];
+      if ((sum & (sum - 1)) == 0) {
+        start = j;
+      }
     }
 
-    record.insert({clz, i});
+    if (start != i) {
+      for (int j = start; j <= i; j++) {
+        find_files->push_back(temp[j]);
+      }
+      return true;
+    }
   }
   return false;
 }
@@ -2650,7 +2664,8 @@ void VersionStorageInfo::ComputeCompactionScore(
           // Level-based involves L0->L0 compactions that can lead to oversized
           // L0 files. Take into account size as well to avoid later giant
           // compactions to the base level.
-          uint64_t l0_target_size = mutable_cf_options.max_bytes_for_level_base;
+          uint64_t l0_target_size = mutable_cf_options.max_bytes_for_level_base 
+                                    * (1 << mutable_cf_options.expansions);
           if (immutable_cf_options.level_compaction_dynamic_level_bytes &&
               level_multiplier_ != 0.0) {
             // Prevent L0 to Lbase fanout from growing larger than
@@ -3460,14 +3475,16 @@ void VersionStorageInfo::CalculateBaseBytes(const ImmutableCFOptions& ioptions,
     // Calculate for static bytes base case
     for (int i = 0; i < ioptions.num_levels; ++i) {
       if (i == 0 && ioptions.compaction_style == kCompactionStyleUniversal) {
-        level_max_bytes_[i] = options.max_bytes_for_level_base;
+        level_max_bytes_[i] = options.max_bytes_for_level_base * (1 << options.expansions);
       } else if (i > 1) {
         level_max_bytes_[i] = MultiplyCheckOverflow(
+            MultiplyCheckOverflow(
             MultiplyCheckOverflow(level_max_bytes_[i - 1],
                                   options.max_bytes_for_level_multiplier),
-            options.MaxBytesMultiplerAdditional(i - 1));
+            options.MaxBytesMultiplerAdditional(i - 1)),
+            1 << options.expansions);
       } else {
-        level_max_bytes_[i] = options.max_bytes_for_level_base;
+        level_max_bytes_[i] = options.max_bytes_for_level_base * (1 << options.expansions);
       }
     }
   } else {

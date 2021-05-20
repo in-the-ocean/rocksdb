@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <unordered_set>
 #include <vector>
+#include <iostream>
 
 #include "options/cf_options.h"
 #include "options/db_options.h"
@@ -193,6 +194,8 @@ ColumnFamilyOptions BuildColumnFamilyOptions(
   cf_opts.prefix_extractor = mutable_cf_options.prefix_extractor;
 
   // Compaction related options
+  cf_opts.curr_max_level = mutable_cf_options.curr_max_level;
+  cf_opts.expansions = mutable_cf_options.expansions;
   cf_opts.disable_auto_compactions =
       mutable_cf_options.disable_auto_compactions;
   cf_opts.soft_pending_compaction_bytes_limit =
