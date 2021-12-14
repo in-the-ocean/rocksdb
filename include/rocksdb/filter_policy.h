@@ -129,7 +129,7 @@ struct FilterBuildingContext {
 // You can choose filter type in NewBloomFilterPolicy
 class FilterPolicy {
  public:
-  virtual ~FilterPolicy();
+  virtual ~FilterPolicy(){ };
 
   // Creates a new FilterPolicy based on the input value string and returns the
   // result The value might be an ID, and ID with properties, or an old-style
@@ -158,12 +158,20 @@ class FilterPolicy {
   virtual void CreateFilter(const Slice* keys, int n,
                             std::string* dst) const = 0;
 
+  virtual void CreateFilterForLevel(const Slice* keys, int n, std::string* dst, int level = -1) const {
+	  CreateFilter(keys, n, dst);
+  }
+  virtual void CreateFilterWithParameters(const Slice* keys, int n, std::string* dst, double bits_per_element, int num_probes) {
+	  CreateFilter(keys, n, dst);
+  }
+
   // "filter" contains the data appended by a preceding call to
   // CreateFilter() on this class.  This method must return true if
   // the key was in the list of keys passed to CreateFilter().
   // This method may return true or false if the key was not on the
   // list, but it should aim to return false with a high probability.
   virtual bool KeyMayMatch(const Slice& key, const Slice& filter) const = 0;
+
 
   // Return a new FilterBitsBuilder for full or partitioned filter blocks, or
   // nullptr if using block-based filter.
@@ -182,6 +190,18 @@ class FilterPolicy {
     return GetFilterBitsBuilder();
   }
 
+  virtual FilterBitsBuilder* GetFilterBitsBuilder(int level) const {
+    return nullptr;
+  }
+
+  // Get the FilterBitsBuilder, which is ONLY used for full filter block
+  // It contains interface to take individual key, then generate filter
+  // This version of the method is used for Dostoevsky to set different parameters
+  // to different levels.
+  virtual FilterBitsBuilder* GetFilterBitsBuilderWithParameters(double bits_per_entry, double num_probes) const {
+    return nullptr;
+  }
+
   // Return a new FilterBitsReader for full or partitioned filter blocks, or
   // nullptr if using block-based filter.
   // As here, the input slice should NOT be deleted by FilterPolicy.
@@ -189,6 +209,53 @@ class FilterPolicy {
       const Slice& /*contents*/) const {
     return nullptr;
   }
+};
+
+
+class BloomFilterPolicyWrapper : public FilterPolicy {
+public:
+	BloomFilterPolicyWrapper(int bits_per_key, bool use_block_based_builder);
+	virtual ~BloomFilterPolicyWrapper() {
+	  delete fp;
+	}
+	virtual const char* Name() const override {
+		return fp->Name();
+	}
+	virtual void CreateFilter(const Slice* keys, int n, std::string* dst) const override {
+		fp->CreateFilter(keys, n, dst);
+	}
+	virtual bool KeyMayMatch(const Slice& key, const Slice& filter) const override {
+		return fp->KeyMayMatch(key, filter);
+	}
+  virtual void CreateFilterWithParameters(const Slice* keys, int n, std::string* dst, double bits_per_element, int num_probes) override {
+    fp->CreateFilterWithParameters(keys, n, dst, bits_per_element, num_probes);
+  }
+  virtual FilterBitsBuilder* GetFilterBitsBuilder(int level) const override {
+    return fp->GetFilterBitsBuilder(level);
+  }
+  virtual FilterBitsReader* GetFilterBitsReader(const Slice& contents) const  override{
+    return fp->GetFilterBitsReader(contents);
+  }
+  virtual FilterBitsBuilder* GetFilterBitsBuilderWithParameters(double bits_per_entry, double num_probes) const override {
+    return fp->GetFilterBitsBuilderWithParameters(bits_per_entry, num_probes);
+  }
+private:
+	FilterPolicy* fp;
+};
+
+
+class FilterBitsReaderWrapper : public FilterBitsReader {
+ public:
+  FilterBitsReaderWrapper(const Slice& contents);
+  virtual ~FilterBitsReaderWrapper() {
+    delete fbr;
+  }
+  // Check if the entry match the bits in filter
+  virtual bool MayMatch(const Slice& entry) {
+    return fbr->MayMatch(entry);
+  }
+ private:
+  FilterBitsReader* fbr;
 };
 
 // Return a new filter policy that uses a bloom filter with approximately

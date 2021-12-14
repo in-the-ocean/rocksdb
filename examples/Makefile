@@ -12,50 +12,73 @@ ifneq ($(USE_RTTI), 1)
 	CXXFLAGS += -fno-rtti
 endif
 
-CFLAGS += -Wstrict-prototypes
 
 .PHONY: clean librocksdb
 
-all: simple_example test_example column_families_example compact_files_example c_simple_example optimistic_transaction_example transaction_example compaction_filter_example options_file_example
+CXX = g++
+CXX_FLAGS += -std=c++1y -O0 -ggdb -g -Wall #-Werror #-fPIC
+# use this next NDEBUG declaration to avoid asserts
+CXX_FLAGS += -DNDEBUG
+
+# LD_FLAGS = -lz -lbz2 
+LIB_ROCKSDB = ../librocksdb.a
+INC_PATH = -I../include
+
+UPDATED_PLATFORM_CXXFLAGS := $(filter-out -std=c++11,$(PLATFORM_CXXFLAGS))
+
+all: dostoevsky simple_example test_example column_families_example compact_files_example   c_simple_example optimistic_transaction_example transaction_example compaction_filter_example options_file_example
 
 simple_example: librocksdb simple_example.cc
-	$(CXX) $(CXXFLAGS) $@.cc -o$@ ../librocksdb.a -I../include -O2 -std=c++11 $(PLATFORM_LDFLAGS) $(PLATFORM_CXXFLAGS) $(EXEC_LDFLAGS)
+	$(CXX) $(CXX_FLAGS) $(LD_FLAGS) $@.cc -o$@ $(LIB_ROCKSDB) $(INC_PATH)  $(PLATFORM_LDFLAGS) $(UPDATED_PLATFORM_CXXFLAGS) $(EXEC_LDFLAGS) 
 
 test_example: librocksdb test_example.cc
-	$(CXX) $(CXXFLAGS) $@.cc -o$@ ../librocksdb.a -I../include -O2 -std=c++11 $(PLATFORM_LDFLAGS) $(PLATFORM_CXXFLAGS) $(EXEC_LDFLAGS)
+	$(CXX) $(CXX_FLAGS) $(LD_FLAGS) $@.cc -o$@ $(LIB_ROCKSDB) $(INC_PATH)  $(PLATFORM_LDFLAGS) $(UPDATED_PLATFORM_CXXFLAGS) $(EXEC_LDFLAGS) 
 
 column_families_example: librocksdb column_families_example.cc
-	$(CXX) $(CXXFLAGS) $@.cc -o$@ ../librocksdb.a -I../include -O2 -std=c++11 $(PLATFORM_LDFLAGS) $(PLATFORM_CXXFLAGS) $(EXEC_LDFLAGS)
+	$(CXX) $(CXX_FLAGS) $(LD_FLAGS) $@.cc -o$@ $(LIB_ROCKSDB) $(INC_PATH)  $(PLATFORM_LDFLAGS) $(UPDATED_PLATFORM_CXXFLAGS) $(EXEC_LDFLAGS)
 
 compaction_filter_example: librocksdb compaction_filter_example.cc
-	$(CXX) $(CXXFLAGS) $@.cc -o$@ ../librocksdb.a -I../include -O2 -std=c++11 $(PLATFORM_LDFLAGS) $(PLATFORM_CXXFLAGS) $(EXEC_LDFLAGS)
+	$(CXX) $(CXX_FLAGS) $(LD_FLAGS) $@.cc -o$@ $(LIB_ROCKSDB) $(INC_PATH)  $(PLATFORM_LDFLAGS) $(UPDATED_PLATFORM_CXXFLAGS) $(EXEC_LDFLAGS)
 
 compact_files_example: librocksdb compact_files_example.cc
-	$(CXX) $(CXXFLAGS) $@.cc -o$@ ../librocksdb.a -I../include -O2 -std=c++11 $(PLATFORM_LDFLAGS) $(PLATFORM_CXXFLAGS) $(EXEC_LDFLAGS)
+	$(CXX) $(CXX_FLAGS) $(LD_FLAGS) $@.cc -o$@ $(LIB_ROCKSDB) $(INC_PATH)  $(PLATFORM_LDFLAGS) $(UPDATED_PLATFORM_CXXFLAGS) $(EXEC_LDFLAGS)
+	
+bloom_filters: bloom_filters.cc    
+	$(CXX) $(CXX_FLAGS) $@.cc   $(INC_PATH) -c  
+
+dostoevsky: librocksdb  bloom_filters  dostoevsky.cc  
+	$(CXX) $(CXX_FLAGS) dostoevsky.cc $(INC_PATH) -c    
+
+# forycsb: dostoevsky
+# 	$(CXX) $(CXX_FLAGS) dostoevsky.o bloom_filters.o -shared -o libdostoevsky.so
+
+holistic_tuner: holistic_tuner.cc  
+	$(CXX) $(CXX_FLAGS) holistic_tuner.cc $(INC_PATH) -c    
+
+holistic_tuner_test: holistic_tuner  holistic_tuner_test.cc  
+	$(CXX) $(CXX_FLAGS) $@.cc -o$@ holistic_tuner.o $(INC_PATH) 
+
+dostoevsky_test:  dostoevsky  dostoevsky_test.cc  
+	$(CXX) $(CXX_FLAGS) $(LD_FLAGS) $@.cc -o$@ $(LIB_ROCKSDB) dostoevsky.o bloom_filters.o $(INC_PATH) $(PLATFORM_LDFLAGS) $(UPDATED_PLATFORM_CXXFLAGS) $(EXEC_LDFLAGS)
+
 
 .c.o:
-	$(CC) $(CFLAGS) -c $< -o $@ -I../include
+	$(CC) $(CFLAGS) -c $< -o $@ $(INC_PATH)
 
 c_simple_example: librocksdb c_simple_example.o
-	$(CXX) $@.o -o$@ ../librocksdb.a $(PLATFORM_LDFLAGS) $(EXEC_LDFLAGS)
+	$(CXX) $(CXX_FLAGS) $(LD_FLAGS) $@.o -o$@ $(LIB_ROCKSDB) $(INC_PATH)  $(PLATFORM_LDFLAGS) $(UPDATED_PLATFORM_CXXFLAGS) $(EXEC_LDFLAGS)
 
 optimistic_transaction_example: librocksdb optimistic_transaction_example.cc
-	$(CXX) $(CXXFLAGS) $@.cc -o$@ ../librocksdb.a -I../include -O2 -std=c++11 $(PLATFORM_LDFLAGS) $(PLATFORM_CXXFLAGS) $(EXEC_LDFLAGS)
+	$(CXX) $(CXX_FLAGS) $(LD_FLAGS) $@.cc -o$@ $(LIB_ROCKSDB) $(INC_PATH) $(PLATFORM_LDFLAGS) $(UPDATED_PLATFORM_CXXFLAGS) $(EXEC_LDFLAGS)
 
 transaction_example: librocksdb transaction_example.cc
-	$(CXX) $(CXXFLAGS) $@.cc -o$@ ../librocksdb.a -I../include -O2 -std=c++11 $(PLATFORM_LDFLAGS) $(PLATFORM_CXXFLAGS) $(EXEC_LDFLAGS)
+	$(CXX) $(CXX_FLAGS) $(LD_FLAGS) $@.cc -o$@ $(LIB_ROCKSDB) $(INC_PATH) $(PLATFORM_LDFLAGS) $(UPDATED_PLATFORM_CXXFLAGS) $(EXEC_LDFLAGS)   
 
 options_file_example: librocksdb options_file_example.cc
-	$(CXX) $(CXXFLAGS) $@.cc -o$@ ../librocksdb.a -I../include -O2 -std=c++11 $(PLATFORM_LDFLAGS) $(PLATFORM_CXXFLAGS) $(EXEC_LDFLAGS)
-
-multi_processes_example: librocksdb multi_processes_example.cc
-	$(CXX) $(CXXFLAGS) $@.cc -o$@ ../librocksdb.a -I../include -O2 -std=c++11 $(PLATFORM_LDFLAGS) $(PLATFORM_CXXFLAGS) $(EXEC_LDFLAGS)
+	$(CXX) $(CXX_FLAGS) $(LD_FLAGS) $@.cc -o$@ $(LIB_ROCKSDB) $(INC_PATH) $(PLATFORM_LDFLAGS) $(UPDATED_PLATFORM_CXXFLAGS) $(EXEC_LDFLAGS)   
 
 clean:
-	rm -rf ./simple_example ./test_example ./column_families_example ./compact_files_example ./compaction_filter_example ./c_simple_example c_simple_example.o ./optimistic_transaction_example ./transaction_example ./options_file_example ./multi_processes_example
-
-cleandb:
-	rm -rf /tmp/rocksdb_test_example /tmp/rocksdb_simple_example /tmp/rocksdb_columnfamilies_example /tmp/rocksdb_compact_files_example /tmp/rocksdb_compaction_filter_example /tmp/rocksdb_c_simple_example  /tmp/rocksdb_optimistic_transaction_example /tmp/rocksdb_transaction_example /tmp/rocksdb_options_file_example /tmp/rocksdb_multi_processes_example
+	rm -rf ./*.o ./simple_example ./column_families_example ./compact_files_example  ./compaction_filter_example ./c_simple_example c_simple_example.o ./optimistic_transaction_example ./transaction_example ./options_file_example ./dostoevsky ./dostoevsky_test
 
 librocksdb:
 	cd .. && $(MAKE) static_lib

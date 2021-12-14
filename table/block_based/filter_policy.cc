@@ -1349,6 +1349,11 @@ FilterBitsReader* BuiltinFilterPolicy::GetBloomBitsReader(
   return new AlwaysTrueFilter();
 }
 
+
+BloomFilterPolicyWrapper::BloomFilterPolicyWrapper(int bits_per_key,
+		bool use_block_based_builder) :
+		fp(new BloomFilterPolicy(bits_per_key, use_block_based_builder ? BloomFilterPolicy::Mode::kDeprecatedBlock : BloomFilterPolicy::Mode::kLegacyBloom)) {}
+
 const FilterPolicy* NewBloomFilterPolicy(double bits_per_key,
                                          bool use_block_based_builder) {
   BloomFilterPolicy::Mode m;
@@ -1362,6 +1367,11 @@ const FilterPolicy* NewBloomFilterPolicy(double bits_per_key,
                    m) != BloomFilterPolicy::kAllUserModes.end());
   return new BloomFilterPolicy(bits_per_key, m);
 }
+
+
+FilterBitsReaderWrapper::FilterBitsReaderWrapper(const Slice& contents)
+: fbr(new LegacyBloomBitsReader(contents.data(), 0, 0, 0)) { }
+
 
 // Chooses between two filter policies based on LSM level
 class LevelThresholdFilterPolicy : public BuiltinFilterPolicy {
@@ -1413,7 +1423,7 @@ FilterBuildingContext::FilterBuildingContext(
     const BlockBasedTableOptions& _table_options)
     : table_options(_table_options) {}
 
-FilterPolicy::~FilterPolicy() { }
+// FilterPolicy::~FilterPolicy() { }
 
 Status FilterPolicy::CreateFromString(
     const ConfigOptions& /*options*/, const std::string& value,
